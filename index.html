@@ -108,7 +108,7 @@ function startGame() {
   document.getElementById('overlay').style.display = 'none';
   document.getElementById('gameOver').style.display = 'none';
   score = 0; lives = 3; obstacles = []; particles = []; speed = 6;
-  player.y = GROUND_Y - 120; player.vy = 0; gameRunning = true;
+  player.y = GROUND_Y - 150; player.vy = 0; gameRunning = true;
   requestAnimationFrame(gameLoop);
 }
 
