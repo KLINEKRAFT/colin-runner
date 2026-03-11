@@ -3,136 +3,195 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=393, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Colin Runner - Final</title>
+<title>COLIN RUNNER: NEON OVERDRIVE</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { background: #0a0a0f; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; font-family: 'Press Start 2P', monospace; }
-  #gameWrapper { position: relative; width: 393px; height: 852px; overflow: hidden; background: #0d0d1a; }
-  #sky { position: absolute; inset: 0; background: linear-gradient(180deg, #0a0014 0%, #1a0030 40%, #2a0a50 70%, #1a1040 100%); }
-  #ground { position: absolute; bottom: 0; left: 0; width: 100%; height: 180px; background: linear-gradient(180deg, #0f0f2a 0%, #080814 100%); border-top: 2px solid #7b00ff; box-shadow: 0 -4px 30px #7b00ff88; }
-  canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
-  #hud { position: absolute; top: 20px; left: 0; right: 0; padding: 0 20px; display: flex; justify-content: space-between; color: #ff00aa; font-size: 11px; z-index: 10; pointer-events: none; }
-  #overlay, #gameOver { position: absolute; inset: 0; background: rgba(5, 0, 20, 0.9); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 20; gap: 20px; text-align: center; }
-  #startBtn, #restartBtn { background: transparent; border: 2px solid #ff00aa; color: #ff00aa; font-family: 'Press Start 2P'; padding: 15px 30px; cursor: pointer; animation: pulse 1.5s infinite alternate; }
-  @keyframes pulse { 0% { box-shadow: 0 0 10px #ff00aa44; } 100% { box-shadow: 0 0 30px #ff00aaaa; } }
+  
+  body { 
+    background: #05050a; 
+    display: flex; justify-content: center; align-items: center; 
+    height: 100vh; overflow: hidden; font-family: 'Press Start 2P', monospace; 
+  }
+
+  #gameWrapper { 
+    position: relative; width: 393px; height: 852px; 
+    overflow: hidden; background: #0a001a; 
+    border: 4px solid #7b00ff;
+    box-shadow: 0 0 50px rgba(123, 0, 255, 0.4);
+  }
+
+  /* CRT Scanline Effect */
+  #gameWrapper::after {
+    content: " ";
+    position: absolute; inset: 0;
+    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), 
+                linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+    background-size: 100% 4px, 3px 100%;
+    pointer-events: none; z-index: 15;
+  }
+
+  /* Parallax Backgrounds */
+  .layer { position: absolute; bottom: 180px; left: 0; width: 200%; height: 400px; pointer-events: none; }
+  #stars { top: 0; height: 100%; background: radial-gradient(1px 1px at 20px 30px, #eee, rgba(0,0,0,0)); background-size: 100px 100px; opacity: 0.3; }
+  
+  #hud { 
+    position: absolute; top: 40px; left: 0; right: 0; padding: 0 20px; 
+    display: flex; justify-content: space-between; z-index: 20;
+    color: #00ffee; text-shadow: 0 0 10px #00ffee; font-size: 10px;
+  }
+
+  #overlay, #gameOver { 
+    position: absolute; inset: 0; background: rgba(5, 0, 15, 0.85); 
+    display: flex; flex-direction: column; align-items: center; justify-content: center; 
+    z-index: 30; gap: 30px; backdrop-filter: blur(4px);
+  }
+
+  button { 
+    background: #ff00aa; border: none; color: white; 
+    padding: 20px 40px; font-family: 'Press Start 2P'; cursor: pointer;
+    box-shadow: 0 0 20px #ff00aa; transition: 0.2s;
+  }
+  button:hover { transform: scale(1.1); box-shadow: 0 0 40px #ff00aa; }
 </style>
 </head>
 <body>
+
 <div id="gameWrapper">
-  <div id="sky"></div>
-  <div id="ground"></div>
-  <canvas id="gameCanvas"></canvas>
+  <div id="stars"></div>
   <div id="hud">
-    <div id="scoreDisplay">SCORE: <span id="scoreVal">000000</span></div>
+    <div>SC:<span id="scoreVal">0</span></div>
     <div id="livesDisplay">♥♥♥</div>
   </div>
+
+  <canvas id="gameCanvas"></canvas>
+
   <div id="overlay">
-    <h1 style="color:#ff00aa; font-size: 24px;">COLIN<br>RUNNER</h1>
-    <button id="startBtn" onclick="startGame()">▶ START</button>
+    <h1 style="color:#ff00aa; font-size: 28px; text-align:center;">COLIN<br>RUNNER</h1>
+    <p style="color:#7b00ff; font-size:8px;">SPACE TO DOUBLE JUMP</p>
+    <button onclick="startGame()">NEON START</button>
   </div>
+
   <div id="gameOver" style="display:none;">
-    <h2 style="color:#ff2244;">GAME OVER</h2>
-    <button id="restartBtn" onclick="startGame()">↺ RETRY</button>
+    <h2 style="color:#ff2244;">SYSTEM FAILURE</h2>
+    <button onclick="startGame()">REBOOT</button>
   </div>
 </div>
+
+<audio id="bgMusic" loop>
+  <source src="https://assets.mixkit.co/music/preview/mixkit-tech-house-vibe-130.mp3" type="audio/mpeg">
+</audio>
 
 <script>
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
-const GAME_W = 393, GAME_H = 852;
-const GROUND_Y = GAME_H - 180;
+const GAME_W = 393, GAME_H = 852, GROUND_Y = 672;
 canvas.width = GAME_W; canvas.height = GAME_H;
 
-// Asset setup
+// Sprites
 const spriteImg = new Image();
 spriteImg.src = 'colin_walk.png'; 
 let spriteLoaded = false;
-spriteImg.onload = () => { spriteLoaded = true; };
+spriteImg.onload = () => spriteLoaded = true;
 
-const SPRITE_W = 192, SPRITE_H = 192, SPRITE_COLS = 6;
-const PLAYER_W = SPRITE_W * 0.65, PLAYER_H = SPRITE_H * 0.65;
-
-// State variables
-let gameRunning = false, score = 0, lives = 3, speed = 5, screenShake = 0;
-let obstacles = [], particles = [], obstacleTimer = 0;
-let player = { x: 80, y: GROUND_Y - PLAYER_H, vy: 0, jumpCount: 0, invincible: 0, squish: 1 };
+// State
+let gameRunning = false, score = 0, lives = 3, speed = 6, shake = 0, frame = 0;
+let obstacles = [], particles = [], speedLines = [];
+let player = { x: 60, y: GROUND_Y - 120, vy: 0, jumpCount: 0, squish: 1, invinc: 0 };
 
 function spawnParticle(x, y, color) {
-  for(let i=0; i<8; i++) particles.push({ x, y, vx:(Math.random()-0.5)*6, vy:(Math.random()-1)*6, life:1, color, size:Math.random()*5 });
-}
-
-function jump() {
-  if (gameRunning && player.jumpCount < 2) {
-    player.vy = -15 * (player.jumpCount === 1 ? 0.8 : 1);
-    player.jumpCount++;
-    player.squish = 0.7;
-    spawnParticle(player.x + PLAYER_W/2, player.y + PLAYER_H, '#7b00ff');
-  }
+  for(let i=0; i<10; i++) particles.push({ x, y, vx:(Math.random()-0.5)*8, vy:(Math.random()-1)*8, life:1, color, s:Math.random()*4 });
 }
 
 function startGame() {
+  document.getElementById('bgMusic').play();
   document.getElementById('overlay').style.display = 'none';
   document.getElementById('gameOver').style.display = 'none';
-  score = 0; lives = 3; obstacles = []; particles = []; screenShake = 0;
-  player.y = GROUND_Y - PLAYER_H; player.vy = 0; player.jumpCount = 0;
-  gameRunning = true;
+  score = 0; lives = 3; obstacles = []; particles = []; speed = 6;
+  player.y = GROUND_Y - 120; player.vy = 0; gameRunning = true;
   requestAnimationFrame(gameLoop);
+}
+
+function drawBackground() {
+  // Ground Grid
+  ctx.strokeStyle = '#7b00ff33';
+  ctx.lineWidth = 2;
+  for(let i=0; i<10; i++) {
+    let y = GROUND_Y + (i * 20);
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(GAME_W, y); ctx.stroke();
+  }
 }
 
 function gameLoop() {
   if (!gameRunning) return;
-  ctx.clearRect(0, 0, GAME_W, GAME_H);
+  frame++;
+  ctx.fillStyle = '#0a001a'; ctx.fillRect(0,0,GAME_W,GAME_H);
 
   // Screen Shake Juice
   ctx.save();
-  if (screenShake > 0) {
-    ctx.translate((Math.random()-0.5)*screenShake, (Math.random()-0.5)*screenShake);
-    screenShake *= 0.9;
-  }
+  if (shake > 0) { ctx.translate((Math.random()-0.5)*shake, (Math.random()-0.5)*shake); shake *= 0.9; }
 
-  // Physics & Mechanics
-  player.vy += 0.6; // Gravity
-  player.y += player.vy;
-  player.squish += (1 - player.squish) * 0.2;
-  if (player.y > GROUND_Y - PLAYER_H) { player.y = GROUND_Y - PLAYER_H; player.vy = 0; player.jumpCount = 0; }
-  if (player.invincible > 0) player.invincible--;
+  drawBackground();
 
-  // Obstacle Management
-  obstacleTimer++;
-  if (obstacleTimer > 100) {
-    obstacles.push({ x: GAME_W, y: GROUND_Y - 50, w: 40, h: 50 });
-    obstacleTimer = 0;
+  // Speed Lines for "Excitement"
+  if (frame % 5 === 0) speedLines.push({ x: GAME_W, y: Math.random()*GROUND_Y, w: Math.random()*50 + 20 });
+  ctx.strokeStyle = 'rgba(0, 255, 238, 0.1)';
+  speedLines.forEach((l, i) => {
+    l.x -= speed * 2;
+    ctx.beginPath(); ctx.moveTo(l.x, l.y); ctx.lineTo(l.x + l.w, l.y); ctx.stroke();
+  });
+  speedLines = speedLines.filter(l => l.x > -100);
+
+  // Player Physics
+  player.vy += 0.8; player.y += player.vy;
+  player.squish += (1 - player.squish) * 0.15;
+  if (player.y > GROUND_Y - 124) { player.y = GROUND_Y - 124; player.vy = 0; player.jumpCount = 0; }
+  if (player.invinc > 0) player.invinc--;
+
+  // Obstacles
+  if (frame % Math.floor(100/ (speed/5)) === 0) {
+    obstacles.push({ x: GAME_W, y: GROUND_Y - 60, w: 50, h: 60, col: '#ff00aa' });
   }
   obstacles.forEach((o, i) => {
     o.x -= speed;
-    ctx.fillStyle = '#ff00aa';
-    ctx.fillRect(o.x, o.y, o.w, o.h);
+    ctx.shadowBlur = 15; ctx.shadowColor = o.col;
+    ctx.fillStyle = o.col; ctx.fillRect(o.x, o.y, o.w, o.h);
+    ctx.shadowBlur = 0;
+
     // Collision
-    if (player.invincible === 0 && player.x < o.x + o.w && player.x + PLAYER_W > o.x && player.y < o.y + o.h && player.y + PLAYER_H > o.y) {
-      lives--; screenShake = 15; player.invincible = 60;
+    if (player.invinc === 0 && player.x < o.x + o.w - 10 && player.x + 80 > o.x + 10 && player.y < o.y + o.h && player.y + 120 > o.y) {
+      lives--; shake = 20; player.invinc = 60; spawnParticle(player.x+40, player.y+60, '#ff2244');
       if (lives <= 0) { gameRunning = false; document.getElementById('gameOver').style.display = 'flex'; }
     }
   });
 
-  // Draw Player
-  if (!(player.invincible > 0 && Math.floor(Date.now()/100)%2)) {
-    const frameX = Math.floor((Date.now() / 100) % SPRITE_COLS) * SPRITE_W;
-    ctx.save();
-    ctx.translate(player.x + PLAYER_W/2, player.y + PLAYER_H);
-    ctx.scale(1.2 - player.squish, player.squish);
-    if (spriteLoaded) ctx.drawImage(spriteImg, frameX, 0, SPRITE_W, SPRITE_H, -PLAYER_W/2, -PLAYER_H, PLAYER_W, PLAYER_H);
-    ctx.restore();
+  // Draw Player (Fixed Squish)
+  ctx.save();
+  let animFrame = Math.floor((Date.now() / 80) % 6);
+  let sX = 1 + (1 - player.squish) * 0.3; // Much more subtle widening
+  ctx.translate(player.x + 60, player.y + 120);
+  ctx.scale(sX, player.squish);
+  if (spriteLoaded) {
+    if (!(player.invinc > 0 && Math.floor(frame/5)%2)) {
+        ctx.drawImage(spriteImg, animFrame * 192, 0, 192, 192, -60, -120, 124, 124);
+    }
   }
+  ctx.restore();
+
+  // Particles
+  particles.forEach(p => { p.x += p.vx; p.y += p.vy; p.vy += 0.2; p.life -= 0.02; ctx.fillStyle = p.color; ctx.globalAlpha = p.life; ctx.fillRect(p.x, p.y, p.s, p.s); });
+  ctx.globalAlpha = 1;
 
   ctx.restore();
-  document.getElementById('scoreVal').innerText = Math.floor(score++);
+  
+  score += 0.2; speed = 6 + (score/200);
+  document.getElementById('scoreVal').innerText = Math.floor(score);
   document.getElementById('livesDisplay').innerText = '♥'.repeat(lives);
   requestAnimationFrame(gameLoop);
 }
 
-window.addEventListener('keydown', e => { if(e.code === 'Space') jump(); });
-canvas.addEventListener('touchstart', e => { e.preventDefault(); jump(); });
+window.addEventListener('keydown', e => { if(e.code === 'Space') { player.vy = -16; player.jumpCount++; player.squish = 0.7; spawnParticle(player.x+60, GROUND_Y, '#7b00ff'); } });
+canvas.addEventListener('touchstart', e => { e.preventDefault(); player.vy = -16; player.squish = 0.7; });
 </script>
 </body>
 </html>
