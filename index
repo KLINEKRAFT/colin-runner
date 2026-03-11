@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=393, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Colin Runner - Final</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0a0a0f; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; font-family: 'Press Start 2P', monospace; }
+  #gameWrapper { position: relative; width: 393px; height: 852px; overflow: hidden; background: #0d0d1a; }
+  #sky { position: absolute; inset: 0; background: linear-gradient(180deg, #0a0014 0%, #1a0030 40%, #2a0a50 70%, #1a1040 100%); }
+  #ground { position: absolute; bottom: 0; left: 0; width: 100%; height: 180px; background: linear-gradient(180deg, #0f0f2a 0%, #080814 100%); border-top: 2px solid #7b00ff; box-shadow: 0 -4px 30px #7b00ff88; }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  #hud { position: absolute; top: 20px; left: 0; right: 0; padding: 0 20px; display: flex; justify-content: space-between; color: #ff00aa; font-size: 11px; z-index: 10; pointer-events: none; }
+  #overlay, #gameOver { position: absolute; inset: 0; background: rgba(5, 0, 20, 0.9); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 20; gap: 20px; text-align: center; }
+  #startBtn, #restartBtn { background: transparent; border: 2px solid #ff00aa; color: #ff00aa; font-family: 'Press Start 2P'; padding: 15px 30px; cursor: pointer; animation: pulse 1.5s infinite alternate; }
+  @keyframes pulse { 0% { box-shadow: 0 0 10px #ff00aa44; } 100% { box-shadow: 0 0 30px #ff00aaaa; } }
+</style>
+</head>
+<body>
+<div id="gameWrapper">
+  <div id="sky"></div>
+  <div id="ground"></div>
+  <canvas id="gameCanvas"></canvas>
+  <div id="hud">
+    <div id="scoreDisplay">SCORE: <span id="scoreVal">000000</span></div>
+    <div id="livesDisplay">♥♥♥</div>
+  </div>
+  <div id="overlay">
+    <h1 style="color:#ff00aa; font-size: 24px;">COLIN<br>RUNNER</h1>
+    <button id="startBtn" onclick="startGame()">▶ START</button>
+  </div>
+  <div id="gameOver" style="display:none;">
+    <h2 style="color:#ff2244;">GAME OVER</h2>
+    <button id="restartBtn" onclick="startGame()">↺ RETRY</button>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const GAME_W = 393, GAME_H = 852;
+const GROUND_Y = GAME_H - 180;
+canvas.width = GAME_W; canvas.height = GAME_H;
+
+// Asset setup
+const spriteImg = new Image();
+spriteImg.src = 'colin_walk.png'; 
+let spriteLoaded = false;
+spriteImg.onload = () => { spriteLoaded = true; };
+
+const SPRITE_W = 192, SPRITE_H = 192, SPRITE_COLS = 6;
+const PLAYER_W = SPRITE_W * 0.65, PLAYER_H = SPRITE_H * 0.65;
+
+// State variables
+let gameRunning = false, score = 0, lives = 3, speed = 5, screenShake = 0;
+let obstacles = [], particles = [], obstacleTimer = 0;
+let player = { x: 80, y: GROUND_Y - PLAYER_H, vy: 0, jumpCount: 0, invincible: 0, squish: 1 };
+
+function spawnParticle(x, y, color) {
+  for(let i=0; i<8; i++) particles.push({ x, y, vx:(Math.random()-0.5)*6, vy:(Math.random()-1)*6, life:1, color, size:Math.random()*5 });
+}
+
+function jump() {
+  if (gameRunning && player.jumpCount < 2) {
+    player.vy = -15 * (player.jumpCount === 1 ? 0.8 : 1);
+    player.jumpCount++;
+    player.squish = 0.7;
+    spawnParticle(player.x + PLAYER_W/2, player.y + PLAYER_H, '#7b00ff');
+  }
+}
+
+function startGame() {
+  document.getElementById('overlay').style.display = 'none';
+  document.getElementById('gameOver').style.display = 'none';
+  score = 0; lives = 3; obstacles = []; particles = []; screenShake = 0;
+  player.y = GROUND_Y - PLAYER_H; player.vy = 0; player.jumpCount = 0;
+  gameRunning = true;
+  requestAnimationFrame(gameLoop);
+}
+
+function gameLoop() {
+  if (!gameRunning) return;
+  ctx.clearRect(0, 0, GAME_W, GAME_H);
+
+  // Screen Shake Juice
+  ctx.save();
+  if (screenShake > 0) {
+    ctx.translate((Math.random()-0.5)*screenShake, (Math.random()-0.5)*screenShake);
+    screenShake *= 0.9;
+  }
+
+  // Physics & Mechanics
+  player.vy += 0.6; // Gravity
+  player.y += player.vy;
+  player.squish += (1 - player.squish) * 0.2;
+  if (player.y > GROUND_Y - PLAYER_H) { player.y = GROUND_Y - PLAYER_H; player.vy = 0; player.jumpCount = 0; }
+  if (player.invincible > 0) player.invincible--;
+
+  // Obstacle Management
+  obstacleTimer++;
+  if (obstacleTimer > 100) {
+    obstacles.push({ x: GAME_W, y: GROUND_Y - 50, w: 40, h: 50 });
+    obstacleTimer = 0;
+  }
+  obstacles.forEach((o, i) => {
+    o.x -= speed;
+    ctx.fillStyle = '#ff00aa';
+    ctx.fillRect(o.x, o.y, o.w, o.h);
+    // Collision
+    if (player.invincible === 0 && player.x < o.x + o.w && player.x + PLAYER_W > o.x && player.y < o.y + o.h && player.y + PLAYER_H > o.y) {
+      lives--; screenShake = 15; player.invincible = 60;
+      if (lives <= 0) { gameRunning = false; document.getElementById('gameOver').style.display = 'flex'; }
+    }
+  });
+
+  // Draw Player
+  if (!(player.invincible > 0 && Math.floor(Date.now()/100)%2)) {
+    const frameX = Math.floor((Date.now() / 100) % SPRITE_COLS) * SPRITE_W;
+    ctx.save();
+    ctx.translate(player.x + PLAYER_W/2, player.y + PLAYER_H);
+    ctx.scale(1.2 - player.squish, player.squish);
+    if (spriteLoaded) ctx.drawImage(spriteImg, frameX, 0, SPRITE_W, SPRITE_H, -PLAYER_W/2, -PLAYER_H, PLAYER_W, PLAYER_H);
+    ctx.restore();
+  }
+
+  ctx.restore();
+  document.getElementById('scoreVal').innerText = Math.floor(score++);
+  document.getElementById('livesDisplay').innerText = '♥'.repeat(lives);
+  requestAnimationFrame(gameLoop);
+}
+
+window.addEventListener('keydown', e => { if(e.code === 'Space') jump(); });
+canvas.addEventListener('touchstart', e => { e.preventDefault(); jump(); });
+</script>
+</body>
+</html>
